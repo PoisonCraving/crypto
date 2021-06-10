@@ -83,14 +83,37 @@ type hashed struct {
 }
 
 // GenerateFromPassword returns the bcrypt hash of the password at the given
-// cost. If the cost given is less than MinCost, the cost will be set to
-// DefaultCost, instead. Use CompareHashAndPassword, as defined in this package,
-// to compare the returned hashed password with its cleartext version.
+// cost and randomly generates a salt. If the cost given is less than MinCost,
+// the cost will be set to DefaultCost, instead. Use CompareHashAndPassword,
+// as defined in this package, to compare the returned hashed password with its
+// cleartext version.
 func GenerateFromPassword(password []byte, cost int) ([]byte, error) {
 	p, err := newFromPassword(password, cost)
 	if err != nil {
 		return nil, err
 	}
+	return p.Hash(), nil
+}
+
+// GenerateFromPassword returns the bcrypt hash of the password, using the salt
+// provided, instead of generating one randomly. Use CompareHashAndPassword,
+// as defined in this package, to compare the returned hashed password with its
+// cleartext version.
+func GenerateFromPasswordAndSalt(password, salt []byte) ([]byte, error) {
+	p, _, err := extractHashPrefix(salt)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := bcrypt(password, p.cost, p.salt)
+	if err != nil {
+		return nil, err
+	}
+
+	p.major = majorVersion
+	p.minor = minorVersion
+	p.hash = hash
+
 	return p.Hash(), nil
 }
 
@@ -160,7 +183,7 @@ func newFromHash(hashedSecret []byte) (*hashed, error) {
 	if len(hashedSecret) < minHashSize {
 		return nil, ErrHashTooShort
 	}
-	p, remainingSecret, err := newFromSalt(hashedSecret)
+	p, remainingSecret, err := extractHashPrefix(hashedSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +194,10 @@ func newFromHash(hashedSecret []byte) (*hashed, error) {
 	return p, nil
 }
 
-func newFromSalt(hashedSecret []byte) (*hashed, []byte, error) {
+func extractHashPrefix(hashedSecret []byte) (*hashed, []byte, error) {
+	if len(hashedSecret) < minHashSize-encodedHashSize {
+		return nil, nil, ErrHashTooShort
+	}
 	p := new(hashed)
 	n, err := p.decodeVersion(hashedSecret)
 	if err != nil {
