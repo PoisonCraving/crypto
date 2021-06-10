@@ -160,15 +160,27 @@ func newFromHash(hashedSecret []byte) (*hashed, error) {
 	if len(hashedSecret) < minHashSize {
 		return nil, ErrHashTooShort
 	}
+	p, remainingSecret, err := newFromSalt(hashedSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	p.hash = make([]byte, len(remainingSecret))
+	copy(p.hash, remainingSecret)
+
+	return p, nil
+}
+
+func newFromSalt(hashedSecret []byte) (*hashed, []byte, error) {
 	p := new(hashed)
 	n, err := p.decodeVersion(hashedSecret)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	hashedSecret = hashedSecret[n:]
 	n, err = p.decodeCost(hashedSecret)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	hashedSecret = hashedSecret[n:]
 
@@ -176,12 +188,9 @@ func newFromHash(hashedSecret []byte) (*hashed, error) {
 	// when base64 decoding it in expensiveBlowfishSetup().
 	p.salt = make([]byte, encodedSaltSize, encodedSaltSize+2)
 	copy(p.salt, hashedSecret[:encodedSaltSize])
-
 	hashedSecret = hashedSecret[encodedSaltSize:]
-	p.hash = make([]byte, len(hashedSecret))
-	copy(p.hash, hashedSecret)
 
-	return p, nil
+	return p, hashedSecret, nil
 }
 
 func bcrypt(password []byte, cost int, salt []byte) ([]byte, error) {
