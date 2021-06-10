@@ -99,7 +99,7 @@ func GenerateFromPassword(password []byte, cost int) ([]byte, error) {
 // provided, instead of generating one randomly. Use CompareHashAndPassword,
 // as defined in this package, to compare the returned hashed password with its
 // cleartext version.
-func GenerateFromPasswordAndSalt(password, salt []byte) ([]byte, error) {
+func GenerateFromPasswordAndEncodedSalt(password, salt []byte) ([]byte, error) {
 	p, _, err := extractHashPrefix(salt)
 	if err != nil {
 		return nil, err

@@ -28,6 +28,31 @@ func TestBcryptingIsEasy(t *testing.T) {
 	}
 }
 
+func TestGenerateFromPasswordAndEncodedSalt(t *testing.T) {
+	pass := []byte("allmine")
+	encodedSalt := []byte("$2a$10$XajjQvNhvvRt5GSeFk1xFe")
+	expectedHash := []byte("$2a$10$XajjQvNhvvRt5GSeFk1xFeyqRrsxkhBkUiQeg0dt.wU1qD4aFDcga")
+
+	hp, err := GenerateFromPasswordAndEncodedSalt(pass, encodedSalt)
+	if err != nil {
+		t.Fatalf("GenerateFromPasswordAndEncodedSalt error: %s", err)
+	}
+
+	if !bytes.Equal(expectedHash, hp) {
+		t.Errorf("%v should hash %s correctly", hp, pass)
+	}
+}
+
+func TestEncodedSaltTooShort(t *testing.T) {
+	pass := []byte("allmine")
+	encodedSalt := []byte("$2a$10$XajjQvNhvvRt5")
+
+	_, err := GenerateFromPasswordAndEncodedSalt(pass, encodedSalt)
+	if err == nil || err != ErrHashTooShort {
+		t.Errorf("Expected %s error but got: %s", ErrHashTooShort, err)
+	}
+}
+
 func TestBcryptingIsCorrect(t *testing.T) {
 	pass := []byte("allmine")
 	salt := []byte("XajjQvNhvvRt5GSeFk1xFe")
